@@ -81,12 +81,13 @@ object SmsAnalysisHelper {
     }
     
     /**
-     * Analyze an SMS message using the AI model
+     * Analyze an SMS message using the AI model with semantic search
      */
     suspend fun analyzeSms(
         context: Context,
         smsText: String,
-        model: Model? = null
+        model: Model? = null,
+        useSemanticSearch: Boolean = true
     ): SmsAnalysisResult? = withContext(Dispatchers.IO) {
         try {
             val targetModel = model ?: getDefaultModel(context)
@@ -98,7 +99,15 @@ object SmsAnalysisHelper {
             Log.d(TAG, "Starting SMS analysis with model: ${targetModel.name}")
             
             // Create the prompt for smishing detection
-            val prompt = createSmishingDetectionPrompt(smsText)
+            val prompt = if (useSemanticSearch) {
+                createPromptWithSemanticSearch(context, smsText)
+            } else {
+                createSmishingDetectionPrompt(smsText)
+            }
+            
+            // Log the final prompt for debugging
+            Log.d(TAG, "Final prompt length: ${prompt.length} characters")
+            Log.d(TAG, "Final prompt: $prompt")
             
             var analysisResult: SmsAnalysisResult? = null
             var isCompleted = false
@@ -158,6 +167,39 @@ object SmsAnalysisHelper {
     }
     
     /**
+     * Create prompt with semantic search examples
+     */
+    private suspend fun createPromptWithSemanticSearch(context: Context, smsText: String): String {
+        try {
+            // Initialize embedding model if not already done
+            if (!EmbeddingHelper.isInitialized()) {
+                Log.d(TAG, "Initializing embedding model for semantic search...")
+                val initialized = EmbeddingHelper.initialize(context)
+                if (!initialized) {
+                    Log.w(TAG, "Failed to initialize embedding model, falling back to simple prompt")
+                    return createSmishingDetectionPrompt(smsText)
+                }
+            }
+            
+            // Find similar examples
+            Log.d(TAG, "Performing semantic search for SMS: $smsText")
+            val searchResult = EmbeddingHelper.findSimilarExamples(smsText, 2)
+            if (searchResult == null) {
+                Log.w(TAG, "Semantic search failed, falling back to simple prompt")
+                return createSmishingDetectionPrompt(smsText)
+            }
+            
+            // Build prompt with examples
+            Log.d(TAG, "Building prompt with semantic search examples")
+            return PromptBuilder.buildPromptWithExamples(context, smsText, searchResult)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in semantic search, falling back to simple prompt", e)
+            return createSmishingDetectionPrompt(smsText)
+        }
+    }
+    
+    /**
      * Create a prompt for smishing detection
      */
     private fun createSmishingDetectionPrompt(smsText: String): String {
@@ -203,12 +245,30 @@ Analyze the message and respond:
             
             for (line in lines) {
                 when {
+                    // Handle both formats: "CLASSIFICATION:" and "## Classification:"
                     line.startsWith("CLASSIFICATION:", ignoreCase = true) -> {
                         classification = line.substringAfter(":").trim().lowercase()
                         Log.d(TAG, "Found classification: '$classification'")
                     }
+                    line.startsWith("## CLASSIFICATION:", ignoreCase = true) -> {
+                        classification = line.substringAfter("## CLASSIFICATION:").trim().lowercase()
+                        Log.d(TAG, "Found classification: '$classification'")
+                    }
+                    line.startsWith("## Classification:", ignoreCase = true) -> {
+                        classification = line.substringAfter("## Classification:").trim().lowercase()
+                        Log.d(TAG, "Found classification: '$classification'")
+                    }
+                    // Handle both formats: "EXPLANATION:" and "## Explanation:"
                     line.startsWith("EXPLANATION:", ignoreCase = true) -> {
                         explanation = line.substringAfter(":").trim()
+                        Log.d(TAG, "Found explanation: '$explanation'")
+                    }
+                    line.startsWith("## EXPLANATION:", ignoreCase = true) -> {
+                        explanation = line.substringAfter("## EXPLANATION:").trim()
+                        Log.d(TAG, "Found explanation: '$explanation'")
+                    }
+                    line.startsWith("## Explanation:", ignoreCase = true) -> {
+                        explanation = line.substringAfter("## Explanation:").trim()
                         Log.d(TAG, "Found explanation: '$explanation'")
                     }
                 }
@@ -249,4 +309,31 @@ Analyze the message and respond:
             .filter { isModelDownloaded(context, it) }
             .map { it.name }
     }
-} 
+    
+    /**
+     * Clean up embedding resources
+     */
+    fun cleanupEmbeddings() {
+        EmbeddingHelper.cleanup()
+        PromptBuilder.clearCache()
+        Log.d(TAG, "Embedding resources cleaned up")
+    }
+    
+    /**
+     * Check if semantic search is available
+     */
+    fun isSemanticSearchAvailable(context: Context): Boolean {
+        return try {
+            // Check if embedding assets exist
+            val assets = context.assets
+            val files = assets.list("") ?: emptyArray()
+            files.contains("sms_embedding_model.tflite") &&
+            files.contains("benign_embeddings.json") &&
+            files.contains("smishing_embeddings.json") &&
+            files.contains("prompt.md")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking semantic search availability", e)
+            false
+        }
+    }
+}
