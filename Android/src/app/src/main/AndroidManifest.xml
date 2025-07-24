@@ -32,6 +32,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -88,6 +90,20 @@
             android:exported="true"
             android:theme="@style/Theme.Gallery.OssLicenses" />
 
+        <!-- SMS Analysis Activity -->
+        <activity
+            android:name="com.google.ai.edge.gallery.sms.SmsAnalysisActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Gallery"
+            android:screenOrientation="portrait" />
+
+        <!-- SMS Details Activity -->
+        <activity
+            android:name="com.google.ai.edge.gallery.sms.SmsDetailsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Gallery"
+            android:screenOrientation="portrait" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -118,6 +134,20 @@
             android:enabled="true"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- SMS Receiver for SMS Guard -->
+        <receiver
+            android:name="com.google.ai.edge.gallery.sms.SmsReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.google.ai.edge.gallery.TEST_SMS" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

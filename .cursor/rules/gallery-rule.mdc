@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+
+# Application: SMS Guard
+
+We are developing an Android App that receives and process SMS acting a smishing (SMS phishing) filter. Its core AI is a small language model, that does the classification and analysis. We are working on an already codebase that implemented functionality
+to download and use language models. What we will do is simply use it becasue the AI functionality is proven and we will
+add the logic for the reception of SMS and then passing the SMS contents to the AI model so that it does the classification.
+
+# Main functionality:
+When the phone receives an SMS, a new screen is opened. It displays the message inmediately. At the same time, it process locally the SMS text with one of the available models (by deafult we will use Gemma-3n-EB2-int4, if not available get the first available, if none is available, warn the user and back to main screen). The model classifies it a "smishing" or "benign".
+A small loader indicates the message is being processed. 
+If the message is classified as benign, it simply attaches a small green mark to the SMS so that the user knows the SMS has been verified.
+If the message is classified as smishing, a red mark is attached to it indicating that the message is likely a malicious one. When the user touches the red mark, a new screen is open where the user gets information about why 
+the message is considered malicious.
+
+
+## Technologies
+Use what the app already use. Only add what you consider best to inlcude the described functionality following the patterns of the codebase.
+
+
+## Extra rules
+- Always when you generate code, compile to make sure there are no problems. 
+- Eventhough you might think that the build.gradle.kts are wrong, those that are right now in context are correct. If you need to modify libs.versions or gradle files, simply add the new things and don't modify what exists already.
+

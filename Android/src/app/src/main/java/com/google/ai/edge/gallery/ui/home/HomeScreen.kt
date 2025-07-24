@@ -22,8 +22,8 @@ package com.google.ai.edge.gallery.ui.home
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.OpenableColumns
 import android.util.Log
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -104,6 +105,7 @@ import com.google.ai.edge.gallery.ui.common.TaskIcon
 import com.google.ai.edge.gallery.ui.common.tos.TosDialog
 import com.google.ai.edge.gallery.ui.common.tos.TosViewModel
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
+import com.google.ai.edge.gallery.sms.SmsAnalysisActivity
 import com.google.ai.edge.gallery.ui.theme.customColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -205,6 +207,64 @@ fun HomeScreen(
             ) {
               AppTitle()
               IntroText()
+              
+              // Test SMS Button (for emulator testing)
+              val context = LocalContext.current
+              Card(
+                modifier = Modifier.fillMaxWidth().clickable {
+                  try {
+                    // Direct launch for testing
+                    val testIntent = Intent(context, SmsAnalysisActivity::class.java).apply {
+                      putExtra("sms_sender", "+1234567890")
+                      putExtra("sms_body", "IRS. You have tax return unclaimed. Click for more info https://tax-return.ru/unpaid")
+                      putExtra("sms_timestamp", System.currentTimeMillis())
+                    }
+                    context.startActivity(testIntent)
+                    Log.d("HomeScreen", "Test SMS Activity launched")
+                  } catch (e: Exception) {
+                    Log.e("HomeScreen", "Failed to launch SMS Activity", e)
+                  }
+                },
+                colors = CardDefaults.cardColors(
+                  containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+              ) {
+                Text(
+                  text = "🧪 Test SMS Analysis (Direct)",
+                  style = MaterialTheme.typography.bodyLarge,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onErrorContainer,
+                  modifier = Modifier.padding(16.dp)
+                )
+              }
+              
+              // Test Broadcast Receiver
+              Card(
+                modifier = Modifier.fillMaxWidth().clickable {
+                  try {
+                    // Test broadcast receiver
+                    val testIntent = Intent("com.google.ai.edge.gallery.TEST_SMS").apply {
+                      putExtra("sms_sender", "+1234567890")
+                      putExtra("sms_body", "Test broadcast receiver message")
+                    }
+                    context.sendBroadcast(testIntent)
+                    Log.d("HomeScreen", "Test broadcast sent")
+                  } catch (e: Exception) {
+                    Log.e("HomeScreen", "Failed to send broadcast", e)
+                  }
+                },
+                colors = CardDefaults.cardColors(
+                  containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+              ) {
+                Text(
+                  text = "📡 Test Broadcast Receiver",
+                  style = MaterialTheme.typography.bodyLarge,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onPrimaryContainer,
+                  modifier = Modifier.padding(16.dp)
+                )
+              }
             }
 
             TaskList(
