@@ -1,19 +1,3 @@
-/*
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.google.ai.edge.gallery.sms
 
 import android.content.Context
@@ -31,6 +15,7 @@ private const val TAG = "AGSmsAnalysisHelper"
 data class SmsAnalysisResult(
     val isSmishing: Boolean,
     val explanation: String,
+    val tips: String = "",
     val confidence: Float = 0.0f
 )
 
@@ -233,64 +218,156 @@ Analyze the message and respond:
     }
     
     /**
-     * Parse the AI response to extract classification and explanation
+     * Parse the AI response to extract classification, explanation, and tips
+     * This is a robust parser that handles various model output formats
      */
     private fun parseAnalysisResult(response: String): SmsAnalysisResult {
         Log.d(TAG, "Parsing response: $response")
         
         try {
-            val lines = response.split("\n")
+            // Replace literal \n with actual newlines and split properly
+            val cleanResponse = response.replace("\\n", "\n")
+            val lines = cleanResponse.split("\n")
+            Log.d(TAG, "Split into ${lines.size} lines")
             var classification = ""
             var explanation = ""
+            var tips = ""
+            var inTipsSection = false
+            var tipsLines = mutableListOf<String>()
             
             for (line in lines) {
+                val trimmedLine = line.trim()
+                Log.d(TAG, "Processing line: '$trimmedLine'")
                 when {
-                    // Handle both formats: "CLASSIFICATION:" and "## Classification:"
-                    line.startsWith("CLASSIFICATION:", ignoreCase = true) -> {
-                        classification = line.substringAfter(":").trim().lowercase()
+                    // Handle classification in various formats
+                    trimmedLine.startsWith("CLASSIFICATION:", ignoreCase = true) -> {
+                        classification = trimmedLine.substringAfter(":").trim().lowercase()
                         Log.d(TAG, "Found classification: '$classification'")
+                        inTipsSection = false
                     }
-                    line.startsWith("## CLASSIFICATION:", ignoreCase = true) -> {
-                        classification = line.substringAfter("## CLASSIFICATION:").trim().lowercase()
+                    trimmedLine.startsWith("## CLASSIFICATION:", ignoreCase = true) -> {
+                        classification = trimmedLine.substringAfter("## CLASSIFICATION:").trim().lowercase()
                         Log.d(TAG, "Found classification: '$classification'")
+                        inTipsSection = false
                     }
-                    line.startsWith("## Classification:", ignoreCase = true) -> {
-                        classification = line.substringAfter("## Classification:").trim().lowercase()
+                    trimmedLine.startsWith("## Classification:", ignoreCase = true) -> {
+                        classification = trimmedLine.substringAfter("## Classification:").trim().lowercase()
                         Log.d(TAG, "Found classification: '$classification'")
+                        inTipsSection = false
                     }
-                    // Handle both formats: "EXPLANATION:" and "## Explanation:"
-                    line.startsWith("EXPLANATION:", ignoreCase = true) -> {
-                        explanation = line.substringAfter(":").trim()
-                        Log.d(TAG, "Found explanation: '$explanation'")
+                    trimmedLine.startsWith("## classification:", ignoreCase = true) -> {
+                        classification = trimmedLine.substringAfter("## classification:").trim().lowercase()
+                        Log.d(TAG, "Found classification: '$classification'")
+                        inTipsSection = false
                     }
-                    line.startsWith("## EXPLANATION:", ignoreCase = true) -> {
-                        explanation = line.substringAfter("## EXPLANATION:").trim()
+                    
+                    // Handle explanation in various formats
+                    trimmedLine.startsWith("EXPLANATION:", ignoreCase = true) -> {
+                        explanation = trimmedLine.substringAfter(":").trim()
                         Log.d(TAG, "Found explanation: '$explanation'")
+                        inTipsSection = false
                     }
-                    line.startsWith("## Explanation:", ignoreCase = true) -> {
-                        explanation = line.substringAfter("## Explanation:").trim()
+                    trimmedLine.startsWith("## EXPLANATION:", ignoreCase = true) -> {
+                        explanation = trimmedLine.substringAfter("## EXPLANATION:").trim()
                         Log.d(TAG, "Found explanation: '$explanation'")
+                        inTipsSection = false
+                    }
+                    trimmedLine.startsWith("## Explanation:", ignoreCase = true) -> {
+                        explanation = trimmedLine.substringAfter("## Explanation:").trim()
+                        Log.d(TAG, "Found explanation: '$explanation'")
+                        inTipsSection = false
+                    }
+                    trimmedLine.startsWith("## explanation:", ignoreCase = true) -> {
+                        explanation = trimmedLine.substringAfter("## explanation:").trim()
+                        Log.d(TAG, "Found explanation: '$explanation'")
+                        inTipsSection = false
+                    }
+                    
+                    // Handle tips section start
+                    trimmedLine.startsWith("TIPS:", ignoreCase = true) -> {
+                        inTipsSection = true
+                        val tipsContent = trimmedLine.substringAfter(":").trim()
+                        if (tipsContent.isNotEmpty()) {
+                            tipsLines.add(tipsContent)
+                        }
+                        Log.d(TAG, "Found tips section")
+                    }
+                    trimmedLine.startsWith("## TIPS:", ignoreCase = true) -> {
+                        inTipsSection = true
+                        val tipsContent = trimmedLine.substringAfter("## TIPS:").trim()
+                        if (tipsContent.isNotEmpty()) {
+                            tipsLines.add(tipsContent)
+                        }
+                        Log.d(TAG, "Found tips section")
+                    }
+                    trimmedLine.startsWith("## Tips:", ignoreCase = true) -> {
+                        inTipsSection = true
+                        val tipsContent = trimmedLine.substringAfter("## Tips:").trim()
+                        if (tipsContent.isNotEmpty()) {
+                            tipsLines.add(tipsContent)
+                        }
+                        Log.d(TAG, "Found tips section")
+                    }
+                    trimmedLine.startsWith("## tips:", ignoreCase = true) -> {
+                        inTipsSection = true
+                        val tipsContent = trimmedLine.substringAfter("## tips:").trim()
+                        if (tipsContent.isNotEmpty()) {
+                            tipsLines.add(tipsContent)
+                        }
+                        Log.d(TAG, "Found tips section")
+                    }
+                    
+                    // Collect all lines in tips section as raw text
+                    inTipsSection && trimmedLine.isNotEmpty() && !trimmedLine.startsWith("##") -> {
+                        Log.d(TAG, "In tips section, processing line: '$trimmedLine'")
+                        tipsLines.add(trimmedLine)
+                        Log.d(TAG, "Added to tips lines: '$trimmedLine'")
                     }
                 }
             }
             
+            // Join all tips lines into a single string
+            tips = tipsLines.joinToString(" ").trim()
+            
             // Check if classification contains "smishing" (case insensitive)
             val isSmishing = classification.contains("smishing", ignoreCase = true)
-            Log.d(TAG, "Classification: '$classification', isSmishing: $isSmishing")
+            Log.d(TAG, "Final parsed values:")
+            Log.d(TAG, "  Classification: '$classification'")
+            Log.d(TAG, "  Explanation: '$explanation'")
+            Log.d(TAG, "  Tips: '$tips'")
+            Log.d(TAG, "  IsSmishing: $isSmishing")
+            
+            // If no tips found, create a fallback tip based on the explanation
+            if (tips.isEmpty()) {
+                tips = createFallbackTipsText(isSmishing, explanation)
+            }
             
             return SmsAnalysisResult(
                 isSmishing = isSmishing,
                 explanation = explanation.ifEmpty { 
                     if (isSmishing) "Message contains suspicious content" 
                     else "Message appears to be legitimate" 
-                }
+                },
+                tips = tips
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing analysis result", e)
             return SmsAnalysisResult(
                 isSmishing = false,
-                explanation = "Unable to analyze message"
+                explanation = "Unable to analyze message",
+                tips = createFallbackTipsText(false, "Unable to analyze message")
             )
+        }
+    }
+    
+    /**
+     * Create fallback tips text based on classification and explanation
+     */
+    private fun createFallbackTipsText(isSmishing: Boolean, explanation: String): String {
+        return if (isSmishing) {
+            "Don't click on suspicious links. Never share personal information via SMS. Be wary of urgent or threatening messages."
+        } else {
+            "Message appears to be legitimate. Continue with normal communication. No action required."
         }
     }
     

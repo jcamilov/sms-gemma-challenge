@@ -1,19 +1,3 @@
-/*
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.google.ai.edge.gallery.sms
 
 import android.content.Intent
@@ -70,11 +54,12 @@ class SmsAnalysisActivity : ComponentActivity() {
                         timestamp = timestamp,
                         context = this,
                         onBackPressed = { finish() },
-                        onSmishingDetails = { explanation ->
+                        onSmishingDetails = { explanation, tips ->
                             val intent = Intent(this, SmsDetailsActivity::class.java).apply {
                                 putExtra("sms_sender", sender)
                                 putExtra("sms_body", body)
                                 putExtra("sms_explanation", explanation)
+                                putExtra("sms_tips", tips)
                                 putExtra("sms_timestamp", timestamp)
                             }
                             startActivity(intent)
@@ -94,10 +79,11 @@ fun SmsAnalysisScreen(
     timestamp: Long,
     context: android.content.Context,
     onBackPressed: () -> Unit,
-    onSmishingDetails: (String) -> Unit
+    onSmishingDetails: (String, String) -> Unit
 ) {
     var analysisStatus by remember { mutableStateOf(AnalysisStatus.PROCESSING) }
     var analysisResult by remember { mutableStateOf<AnalysisResult?>(null) }
+    var smsAnalysisResult by remember { mutableStateOf<SmsAnalysisResult?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var modelInfo by remember { mutableStateOf<String?>(null) }
     var explanation by remember { mutableStateOf<String?>(null) }
@@ -128,7 +114,8 @@ fun SmsAnalysisScreen(
             )
             
             if (result != null) {
-                Log.d("SmsAnalysisActivity", "Analysis completed: ${result.isSmishing}, Explanation: ${result.explanation}")
+                Log.d("SmsAnalysisActivity", "Analysis completed: ${result.isSmishing}, Explanation: ${result.explanation}, Tips: ${result.tips}")
+                smsAnalysisResult = result
                 analysisResult = if (result.isSmishing) AnalysisResult.SMISHING else AnalysisResult.BENIGN
                 explanation = result.explanation
                 analysisStatus = AnalysisStatus.COMPLETED
@@ -298,7 +285,10 @@ fun SmsAnalysisScreen(
                                     // Clickable details button for smishing messages
                                     explanation?.let { exp ->
                                         Button(
-                                            onClick = { onSmishingDetails(exp) },
+                                            onClick = { 
+                                                val tips = smsAnalysisResult?.tips ?: ""
+                                                onSmishingDetails(exp, tips)
+                                            },
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = Color.Red

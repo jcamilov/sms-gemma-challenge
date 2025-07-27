@@ -1,19 +1,3 @@
-/*
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.google.ai.edge.gallery.sms
 
 import android.os.Bundle
@@ -48,6 +32,7 @@ class SmsDetailsActivity : ComponentActivity() {
         val sender = intent.getStringExtra("sms_sender") ?: "Unknown"
         val body = intent.getStringExtra("sms_body") ?: ""
         val explanation = intent.getStringExtra("sms_explanation") ?: "No explanation available"
+        val tips = intent.getStringExtra("sms_tips") ?: ""
         val timestamp = intent.getLongExtra("sms_timestamp", System.currentTimeMillis())
         
         setContent {
@@ -60,6 +45,7 @@ class SmsDetailsActivity : ComponentActivity() {
                         sender = sender,
                         body = body,
                         explanation = explanation,
+                        tips = tips,
                         timestamp = timestamp,
                         onBackPressed = { finish() }
                     )
@@ -75,6 +61,7 @@ fun SmsDetailsScreen(
     sender: String,
     body: String,
     explanation: String,
+    tips: String,
     timestamp: Long,
     onBackPressed: () -> Unit
 ) {
@@ -161,7 +148,7 @@ fun SmsDetailsScreen(
                 }
             }
             
-            // AI Analysis Card
+            // Why this may be a malicious message Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -181,7 +168,7 @@ fun SmsDetailsScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "AI Analysis",
+                            text = "Why this may be a malicious message",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -195,7 +182,7 @@ fun SmsDetailsScreen(
                 }
             }
             
-            // Safety Tips Card
+            // What to do Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -215,110 +202,34 @@ fun SmsDetailsScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Safety Tips",
+                            text = "What to do",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        SafetyTipItem(
-                            text = "Don't click on suspicious links"
+                    if (tips.isNotEmpty()) {
+                        Text(
+                            text = tips,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        SafetyTipItem(
-                            text = "Never share personal information via SMS"
-                        )
-                        SafetyTipItem(
-                            text = "Be wary of urgent or threatening messages"
-                        )
-                        SafetyTipItem(
-                            text = "Verify the sender with official sources"
-                        )
-                        SafetyTipItem(
-                            text = "Report suspicious messages to authorities"
+                    } else {
+                        // Fallback tips if none provided by AI
+                        Text(
+                            text = "Don't click on suspicious links. Never share personal information via SMS. Be wary of urgent or threatening messages. Verify the sender with official sources. Report suspicious messages to authorities.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
             
-            // Common Smishing Indicators
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Common Smishing Indicators",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        IndicatorItem(
-                            text = "Urgency or threats"
-                        )
-                        IndicatorItem(
-                            text = "Requests for personal information"
-                        )
-                        IndicatorItem(
-                            text = "Suspicious or shortened links"
-                        )
-                        IndicatorItem(
-                            text = "Impersonation of trusted entities"
-                        )
-                        IndicatorItem(
-                            text = "Unusual grammar or spelling"
-                        )
-                        IndicatorItem(
-                            text = "Requests for immediate action"
-                        )
-                    }
-                }
-            }
+
         }
     }
 }
 
-@Composable
-fun SafetyTipItem(text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = "•",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
 
-@Composable
-fun IndicatorItem(text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = "⚠",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Red
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-} 
+
+ 
