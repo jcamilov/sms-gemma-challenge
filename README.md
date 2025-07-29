@@ -1,61 +1,89 @@
-# Google AI Edge Gallery ✨
+# SMS Guard 🛡️
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/google-ai-edge/gallery)](https://github.com/google-ai-edge/gallery/releases)
+**Personal AI-Powered Defense Against SMS Phishing Attacks**
 
-**Explore, Experience, and Evaluate the Future of On-Device Generative AI with Google AI Edge.**
+SMS Guard is an innovative Android application that leverages on-device artificial intelligence to protect users from the growing threat of smishing (SMS phishing) attacks. In today's digital landscape, smishing attacks are becoming increasingly sophisticated and widespread, posing significant risks to personal data, financial security, and privacy. Traditional SMS filtering solutions often rely on cloud-based processing, raising concerns about data privacy and requiring constant internet connectivity.
 
-The Google AI Edge Gallery is an experimental app that puts the power of cutting-edge Generative AI models directly into your hands, running entirely on your Android *(available now)* and iOS *(coming soon)* devices. Dive into a world of creative and practical AI use cases, all running locally, without needing an internet connection once the model is loaded. Experiment with different models, chat, ask questions with images, explore prompts, and more!
+SMS Guard addresses these challenges by providing a first-line defense tool that operates entirely on your device, ensuring complete privacy and independence from third-party providers or internet connection. The app not only detects malicious SMS messages in real-time but also educates users through explainable AI results, helping them understand why a message is flagged as suspicious and providing tips on how to react. This educational approach empowers users to develop better security awareness beyond SMS protection, creating a more informed and security-conscious user base.
 
-**Overview**
-<img width="1532" alt="Overview" src="https://github.com/user-attachments/assets/4f2702d7-91a0-4eb3-aa76-58bc8e7089c6" />
+## 🙏 Acknowledgments
 
-**Ask Image**
-<img width="1532" alt="Ask Image" src="https://github.com/user-attachments/assets/e2b5b41b-fed0-4a7c-9547-2abb1c10962c" />
-
-**Prompt Lab**
-<img width="1532" alt="Prompt Lab" src="https://github.com/user-attachments/assets/22e459d0-0365-4a92-8570-fb59d4d1e320" />
-
-**AI Chat**
-<img width="1532" alt="AI Chat" src="https://github.com/user-attachments/assets/edaa4f89-237a-4b84-b647-b3c4631f09dc" />
+This application is built upon the excellent foundation provided by the [Google AI Edge Gallery](https://github.com/google-ai-edge/gallery) project, which offers robust on-device AI capabilities and model management infrastructure. We extend our gratitude to the Google AI Edge team for their pioneering work in making on-device AI accessible and practical.
 
 ## ✨ Core Features
 
-*   **📱 Run Locally, Fully Offline:** Experience the magic of GenAI without an internet connection. All processing happens directly on your device.
-*   **🤖 Choose Your Model:** Easily switch between different models from Hugging Face and compare their performance.
-*   **🖼️ Ask Image:** Upload an image and ask questions about it. Get descriptions, solve problems, or identify objects.
-*   **✍️ Prompt Lab:** Summarize, rewrite, generate code, or use freeform prompts to explore single-turn LLM use cases.
-*   **💬 AI Chat:** Engage in multi-turn conversations.
-*   **📊 Performance Insights:** Real-time benchmarks (TTFT, decode speed, latency).
-*   **🧩 Bring Your Own Model:** Test your local LiteRT `.task` models.
-*   **🔗 Developer Resources:** Quick links to model cards and source code.
+*   **🛡️ Real-Time Smishing Detection:** Instantly analyzes incoming SMS messages using advanced AI models to identify phishing attempts
+*   **🔒 Complete Privacy Protection:** All processing happens locally on your device - no data leaves your phone
+*   **📚 Educational Insights:** Get detailed explanations of why messages are flagged as suspicious, helping you learn to recognize threats
+*   **🌍 Multilingual Support:** Detects smishing attempts across multiple languages and regional variations
+*   **🧠 Adaptive Intelligence:** Uses few-shot prompting to adapt to new attack patterns and emerging threats
+*   **⚡ Offline Operation:** Works without internet connection once models are downloaded
+*   **🎯 High Accuracy:** Powered by Google's Gemma-3n model and supports other advanced language models
+*   **📱 User-Friendly Interface:** Clean, intuitive design with clear visual indicators for message safety
 
-## 🏁 Get Started in Minutes!
+## 🔄 How It Works
 
-1.  **Download the App:** Grab the [**latest APK**](https://github.com/google-ai-edge/gallery/releases/latest/download/ai-edge-gallery.apk).
-2.  **Install & Explore:** For detailed installation instructions (including for corporate devices) and a full user guide, head over to our [**Project Wiki**](https://github.com/google-ai-edge/gallery/wiki)!
+When an SMS arrives on your device, SMS Guard immediately processes the message content through its local AI model (see research approach and more technical details in our [report](). The system analyzes the text for common smishing indicators such as urgent requests, suspicious links, financial pressure tactics, and social engineering patterns. A small loading indicator shows the analysis is in progress.
 
-## 🛠️ Technology Highlights
+**Safe Messages:** Receive a green verification mark indicating the message has been analyzed and deemed safe.
 
-*   **Google AI Edge:** Core APIs and tools for on-device ML.
-*   **LiteRT:** Lightweight runtime for optimized model execution.
-*   **LLM Inference API:** Powering on-device Large Language Models.
-*   **Hugging Face Integration:** For model discovery and download.
+**Suspicious Messages:** Get a red warning mark for potentially malicious messages. The user can tap the mark to view detailed analysis explaining why the message was flagged, including specific threat indicators and educational information about similar attack patterns.
 
-## 🤝 Feedback
+## 📱 Installation
 
-This is an **experimental Alpha release**, and your input is crucial!
+1. **Download the APK:** Get the latest version from our releases (**TBD!!**)
+2. **Enable Unknown Sources:** Go to Settings > Security > Unknown Sources (if not already enabled)
+3. **Install the App:** Open the downloaded APK file and follow the installation prompts
+4. **Grant Permissions:** Allow SMS access when prompted (required for message analysis)
+5. **Download AI Models:** Click on the top right gear icon and follow any of the provided options for model donwload.
 
-*   🐞 **Found a bug?** [Report it here!](https://github.com/google-ai-edge/gallery/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D)
-*   💡 **Have an idea?** [Suggest a feature!](https://github.com/google-ai-edge/gallery/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BFEATURE%5D)
+## 🚀 Usage Guide
 
-## 📄 License
+**First Launch:**
+- Grant necessary permissions for SMS access
 
-Licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+**General Use:**
+- For now the app does not persist messages, as it is meant for **demonstration purposes**.
+- Incoming messages are analyzed instantly
+- Check message status via colored indicators
+- Tap red warnings for detailed threat analysis
+
+**Model Management:**
+- The app uses Gemma-3n-EB2-int4 by default
+- Automatically falls back to other available models if needed
+- No manual configuration required
+
+## 🛠️ Technology Stack
+
+*   **Google AI Edge:** Core on-device AI infrastructure and APIs
+*   **LiteRT:** Lightweight runtime for optimized model execution
+*   **Gemma-3n Model:** Primary AI model for smishing detection
+*   **Android SMS APIs:** For message reception and processing
+*   **Kotlin & Jetpack Compose:** Modern Android development framework
+
+## 🔐 Privacy & Security
+
+**Your Data Stays Private:**
+- All SMS analysis happens locally on your device
+- No message content is transmitted to external servers
+- No personal data is collected or stored by third parties
+- AI models run entirely offline after initial download
+
+**Security Features:**
+- End-to-end local processing
+- No cloud dependencies for message analysis
+- Secure model storage on device
+- Minimal permissions required
+
+## 🤝 Authors
+
+- [Juan Vargas](https://github.com/jcamilov), Researcher at Fraunhofer IAO/IAT, Germany
+- [Ayush Mittal](https://github.com/ayushmittalde), MSc Information studente, Technology Information (**TDB**). Univertät Stuttgart, Germany
+
 
 ## 🔗 Useful Links
 
-*   [**Project Wiki (Detailed Guides)**](https://github.com/google-ai-edge/gallery/wiki)
-*   [Hugging Face LiteRT Community](https://huggingface.co/litert-community)
-*   [LLM Inference guide for Android](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android)
+*   [Research and technical report]() (**TBD!!!**)
 *   [Google AI Edge Documentation](https://ai.google.dev/edge)
+*   [LiteRT Community](https://huggingface.co/litert-community)
+

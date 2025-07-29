@@ -72,6 +72,7 @@ import com.google.ai.edge.gallery.ui.llmsingleturn.LlmSingleTurnScreen
 import com.google.ai.edge.gallery.ui.llmsingleturn.LlmSingleTurnViewModel
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManager
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
+import com.google.ai.edge.gallery.ui.common.tos.TosViewModel
 
 private const val TAG = "AGGalleryNavGraph"
 private const val ROUTE_PLACEHOLDER = "placeholder"
@@ -149,27 +150,25 @@ fun GalleryNavHost(
     }
   )
 
-  // Model manager.
+  // Home screen (original functionality).
   AnimatedVisibility(
     visible = showModelManager,
     enter = slideInHorizontally(initialOffsetX = { it }),
     exit = slideOutHorizontally(targetOffsetX = { it }),
   ) {
-    val curPickedTask = pickedTask
-    if (curPickedTask != null) {
-      ModelManager(
-        viewModel = modelManagerViewModel,
-        task = curPickedTask,
-        onModelClicked = { model ->
-          navigateToTaskScreen(
-            navController = navController,
-            taskType = curPickedTask.type,
-            model = model,
-          )
-        },
-        navigateUp = { showModelManager = false },
-      )
-    }
+    HomeScreen(
+      modelManagerViewModel = modelManagerViewModel,
+      tosViewModel = hiltViewModel(),
+      navigateToTaskScreen = { task ->
+        pickedTask = task
+        showModelManager = false
+        navigateToTaskScreen(
+          navController = navController,
+          taskType = task.type,
+          model = task.models.firstOrNull(),
+        )
+      },
+    )
   }
 
   NavHost(

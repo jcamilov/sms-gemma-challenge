@@ -115,7 +115,7 @@ private const val TASK_COUNT_ANIMATION_DURATION = 250
 
 /** Navigation destination data */
 object HomeScreenDestination {
-  @StringRes val titleRes = R.string.app_name
+  @StringRes val titleRes = R.string.old_app_name
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

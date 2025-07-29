@@ -1,1 +1,1 @@
-# Google AI Edge Gallery (Android)
+# SMS Guard (Android)
