@@ -102,7 +102,17 @@ object LlmChatModelHelper {
 
       val instance = model.instance as LlmModelInstance? ?: return
       val session = instance.session
-      session.close()
+      
+      // Add a small delay to ensure any pending operations complete
+      kotlinx.coroutines.runBlocking {
+        kotlinx.coroutines.delay(100)
+      }
+      
+      try {
+        session.close()
+      } catch (e: Exception) {
+        Log.w(TAG, "Failed to close session, continuing with reset", e)
+      }
 
       val inference = instance.engine
       val topK = model.getIntConfigValue(key = ConfigKey.TOPK, defaultValue = DEFAULT_TOPK)
@@ -126,7 +136,7 @@ object LlmChatModelHelper {
       instance.session = newSession
       Log.d(TAG, "Resetting done")
     } catch (e: Exception) {
-      Log.d(TAG, "Failed to reset session", e)
+      Log.w(TAG, "Failed to reset session", e)
     }
   }
 
@@ -177,16 +187,27 @@ object LlmChatModelHelper {
     // For a model that supports image modality, we need to add the text query chunk before adding
     // image.
     val session = instance.session
-    if (input.trim().isNotEmpty()) {
-      session.addQueryChunk(input)
+    
+    try {
+      if (input.trim().isNotEmpty()) {
+        Log.d(TAG, "Adding query chunk with length: ${input.length}")
+        session.addQueryChunk(input)
+      } else {
+        Log.w(TAG, "Input is empty, skipping query chunk")
+      }
+      
+      for (image in images) {
+        session.addImage(BitmapImageBuilder(image).build())
+      }
+      for (audioClip in audioClips) {
+        // Uncomment when audio is supported.
+        // session.addAudio(audioClip)
+      }
+      val unused = session.generateResponseAsync(resultListener)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error during inference", e)
+      // Call result listener with error
+      resultListener("Error during inference: ${e.message}", true)
     }
-    for (image in images) {
-      session.addImage(BitmapImageBuilder(image).build())
-    }
-    for (audioClip in audioClips) {
-      // Uncomment when audio is supported.
-      // session.addAudio(audioClip)
-    }
-    val unused = session.generateResponseAsync(resultListener)
   }
 }

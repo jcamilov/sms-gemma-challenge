@@ -8,6 +8,7 @@ import com.google.ai.edge.gallery.data.getModelByName
 import com.google.ai.edge.gallery.ui.llmchat.LlmChatModelHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import java.io.File
 
 private const val TAG = "AGSmsAnalysisHelper"
@@ -94,29 +95,44 @@ object SmsAnalysisHelper {
             Log.d(TAG, "Final prompt length: ${prompt.length} characters")
             Log.d(TAG, "Final prompt: $prompt")
             
+            // Verify prompt is not empty
+            if (prompt.trim().isEmpty()) {
+                Log.e(TAG, "Prompt is empty, cannot proceed with analysis")
+                return@withContext null
+            }
+            
             var analysisResult: SmsAnalysisResult? = null
             var isCompleted = false
             var fullResponse = ""
             
-            // Initialize the model if needed
-            if (targetModel.instance == null) {
-                Log.d(TAG, "Initializing model: ${targetModel.name}")
-                LlmChatModelHelper.initialize(context, targetModel) { error ->
-                    if (error.isNotEmpty()) {
-                        Log.e(TAG, "Failed to initialize model: $error")
-                        isCompleted = true
-                    } else {
-                        Log.d(TAG, "Model initialized successfully")
+            // Initialize the model if needed with synchronization
+            var initializationError = ""
+            var initializationComplete = false
+            
+            synchronized(targetModel) {
+                if (targetModel.instance == null) {
+                    Log.d(TAG, "Initializing model: ${targetModel.name}")
+                    
+                    LlmChatModelHelper.initialize(context, targetModel) { error ->
+                        if (error.isNotEmpty()) {
+                            Log.e(TAG, "Failed to initialize model: $error")
+                            initializationError = error
+                        } else {
+                            Log.d(TAG, "Model initialized successfully")
+                        }
+                        initializationComplete = true
                     }
                 }
-                
-                // Wait for initialization
-                while (targetModel.instance == null && !isCompleted) {
+            }
+            
+            // Wait for initialization outside synchronized block
+            if (!initializationComplete) {
+                while (!initializationComplete) {
                     kotlinx.coroutines.delay(100)
                 }
                 
                 if (targetModel.instance == null) {
-                    Log.e(TAG, "Model initialization failed")
+                    Log.e(TAG, "Model initialization failed: $initializationError")
                     return@withContext null
                 }
             }
@@ -126,12 +142,24 @@ object SmsAnalysisHelper {
                 model = targetModel,
                 input = prompt,
                 resultListener = { partialResult, done ->
-                    Log.d(TAG, "Inference result: $partialResult, done: $done")
+                    Log.d(TAG, "Inference result: '$partialResult', done: $done")
                     fullResponse += partialResult
                     if (done) {
                         Log.d(TAG, "Full response accumulated: '$fullResponse'")
                         analysisResult = parseAnalysisResult(fullResponse)
+                        Log.d(TAG, "Analysis result parsed: $analysisResult")
                         isCompleted = true
+                        
+                        // Reset session after inference is complete with delay
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                kotlinx.coroutines.delay(500) // Wait for any pending operations
+                                Log.d(TAG, "Resetting session after inference completion")
+                                LlmChatModelHelper.resetSession(targetModel)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to reset session after inference", e)
+                            }
+                        }
                     }
                 },
                 cleanUpListener = {
@@ -139,9 +167,18 @@ object SmsAnalysisHelper {
                 }
             )
             
-            // Wait for analysis to complete
-            while (!isCompleted) {
+            // Wait for analysis to complete with timeout
+            var timeoutCounter = 0
+            val maxTimeout = 300 // 30 seconds timeout (300 * 100ms)
+            
+            while (!isCompleted && timeoutCounter < maxTimeout) {
                 kotlinx.coroutines.delay(100)
+                timeoutCounter++
+            }
+            
+            if (timeoutCounter >= maxTimeout) {
+                Log.w(TAG, "Analysis timeout reached")
+                return@withContext null
             }
             
             analysisResult
@@ -222,13 +259,14 @@ Analyze the message and respond:
      * This is a robust parser that handles various model output formats
      */
     private fun parseAnalysisResult(response: String): SmsAnalysisResult {
-        Log.d(TAG, "Parsing response: $response")
+        Log.d(TAG, "Parsing response: '$response'")
         
         try {
             // Replace literal \n with actual newlines and split properly
             val cleanResponse = response.replace("\\n", "\n")
             val lines = cleanResponse.split("\n")
             Log.d(TAG, "Split into ${lines.size} lines")
+            Log.d(TAG, "Lines: ${lines.take(5)}") // Log first 5 lines for debugging
             var classification = ""
             var explanation = ""
             var tips = ""

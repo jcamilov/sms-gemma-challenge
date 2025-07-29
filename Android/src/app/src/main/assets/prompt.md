@@ -27,5 +27,5 @@ The purpose of the message is paramount to classify the message: Is it trying to
 ## OUTPUT FORMAT ##
 ## Classification: smishing or benign
 ## Explanation: Highlight only the **intent-driven clues** (e.g., impersonation, deceptive link, fraudulent ask). Avoid tone-based reasoning— no more than 35 words.
-## Tips: Provide in 3 sentences what tips for action you suggest to the receiver
+## Tips: If smishing: Provide 3 concrete tips for action you suggest to the receiver so that he is protected
 

@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.telephony.SmsMessage
 import android.util.Log
 import com.google.ai.edge.gallery.sms.SmsAnalysisActivity
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 private const val TAG = "AGSmsReceiver"
 
@@ -17,8 +20,50 @@ class SmsReceiver : BroadcastReceiver() {
     }
     
     companion object {
+        private var isAnalyzing = false
+        private val analysisQueue = mutableListOf<AnalysisTask>()
+        
+        data class AnalysisTask(
+            val messageId: String,
+            val sender: String,
+            val body: String,
+            val context: Context
+        )
+        
         fun logReceiverStatus(context: Context) {
             Log.d(TAG, "SmsReceiver status check - App package: ${context.packageName}")
+        }
+        
+        private fun processNextAnalysis() {
+            if (isAnalyzing || analysisQueue.isEmpty()) return
+            
+            isAnalyzing = true
+            val task = analysisQueue.removeAt(0)
+            
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    Log.d(TAG, "Starting background analysis for SMS from ${task.sender}")
+                    val result = SmsAnalysisHelper.analyzeSms(task.context, task.body)
+                    
+                    if (result != null) {
+                        Log.d(TAG, "Analysis completed: isSmishing=${result.isSmishing}")
+                        SmsMessageManager.updateMessageAnalysis(
+                            messageId = task.messageId,
+                            isSmishing = result.isSmishing,
+                            explanation = result.explanation,
+                            tips = result.tips
+                        )
+                    } else {
+                        Log.e(TAG, "Analysis returned null result")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error during background analysis", e)
+                } finally {
+                    isAnalyzing = false
+                    // Process next task if available
+                    processNextAnalysis()
+                }
+            }
         }
     }
 
@@ -76,11 +121,23 @@ class SmsReceiver : BroadcastReceiver() {
     }
     
     private fun launchSmsAnalysis(context: Context, sender: String, body: String) {
+        // Add message to the global list
+        val messageId = SmsMessageManager.addMessage(sender, body)
+        
+        // Add analysis task to queue
+        val task = AnalysisTask(messageId, sender, body, context)
+        analysisQueue.add(task)
+        
+        // Start processing if not already analyzing
+        processNextAnalysis()
+        
+        // Launch the analysis activity to show the message being analyzed
         val analysisIntent = Intent(context, SmsAnalysisActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("sms_sender", sender)
             putExtra("sms_body", body)
             putExtra("sms_timestamp", System.currentTimeMillis())
+            putExtra("message_id", messageId)
         }
         
         try {

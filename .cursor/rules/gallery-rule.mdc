@@ -29,7 +29,7 @@ Use what the app already use. Only add what you consider best to inlcude the des
 
 
 ## Extra rules
-- Always when you generate code, compile to make sure there are no problems. Use ./gradlew assembleDebug
+- Always when you generate code, compile to make sure there are no problems. Use Android/src ./gradlew assembleDebug
 - Eventhough you might think that the build.gradle.kts are wrong, those that are right now in context are correct. If you need to modify libs.versions or gradle files, simply add the new things and don't modify what exists already.
 - In your responses, when you fix a problem, be very concise when you provide a summary of the problem and solution. Only 2 paragraphs as much.
 

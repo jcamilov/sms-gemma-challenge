@@ -97,12 +97,7 @@
             android:theme="@style/Theme.Gallery"
             android:screenOrientation="portrait" />
 
-        <!-- SMS Details Activity -->
-        <activity
-            android:name="com.google.ai.edge.gallery.sms.SmsDetailsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Gallery"
-            android:screenOrientation="portrait" />
+
 
         <provider
             android:name="androidx.core.content.FileProvider"

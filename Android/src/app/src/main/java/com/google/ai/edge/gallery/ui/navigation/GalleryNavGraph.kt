@@ -57,6 +57,7 @@ import com.google.ai.edge.gallery.data.TaskType
 import com.google.ai.edge.gallery.data.getModelByName
 import com.google.ai.edge.gallery.firebaseAnalytics
 import com.google.ai.edge.gallery.ui.home.HomeScreen
+import com.google.ai.edge.gallery.sms.SmsListScreen
 import com.google.ai.edge.gallery.ui.llmchat.LlmAskAudioDestination
 import com.google.ai.edge.gallery.ui.llmchat.LlmAskAudioScreen
 import com.google.ai.edge.gallery.ui.llmchat.LlmAskAudioViewModel
@@ -141,17 +142,11 @@ fun GalleryNavHost(
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
 
-  HomeScreen(
-    modelManagerViewModel = modelManagerViewModel,
-    tosViewModel = hiltViewModel(),
-    navigateToTaskScreen = { task ->
-      pickedTask = task
+  SmsListScreen(
+    onNavigateToSettings = {
+      // Show the original home screen functionality
       showModelManager = true
-      firebaseAnalytics?.logEvent(
-        "capability_select",
-        bundleOf("capability_name" to task.type.toString()),
-      )
-    },
+    }
   )
 
   // Model manager.

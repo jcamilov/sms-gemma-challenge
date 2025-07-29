@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.google.ai.edge.gallery.ui.theme.GalleryTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 @AndroidEntryPoint
 class SmsAnalysisActivity : ComponentActivity() {
@@ -39,8 +40,15 @@ class SmsAnalysisActivity : ComponentActivity() {
         val sender = intent.getStringExtra("sms_sender") ?: "Unknown"
         val body = intent.getStringExtra("sms_body") ?: ""
         val timestamp = intent.getLongExtra("sms_timestamp", System.currentTimeMillis())
+        val messageId = intent.getStringExtra("message_id")
+        val existingIsSmishing = intent.getBooleanExtra("sms_is_smishing", false)
+        val existingExplanation = intent.getStringExtra("sms_explanation")
+        val existingTips = intent.getStringExtra("sms_tips")
         
-        Log.d("SmsAnalysisActivity", "Received data - Sender: $sender, Body: $body")
+        Log.d("SmsAnalysisActivity", "Received data - Sender: $sender, Body: $body, MessageId: $messageId")
+        
+        // Check if we have existing analysis results
+        val hasExistingResults = existingExplanation != null && existingTips != null
         
         setContent {
             GalleryTheme {
@@ -52,18 +60,13 @@ class SmsAnalysisActivity : ComponentActivity() {
                         sender = sender,
                         body = body,
                         timestamp = timestamp,
+                        messageId = messageId,
                         context = this,
-                        onBackPressed = { finish() },
-                        onSmishingDetails = { explanation, tips ->
-                            val intent = Intent(this, SmsDetailsActivity::class.java).apply {
-                                putExtra("sms_sender", sender)
-                                putExtra("sms_body", body)
-                                putExtra("sms_explanation", explanation)
-                                putExtra("sms_tips", tips)
-                                putExtra("sms_timestamp", timestamp)
-                            }
-                            startActivity(intent)
-                        }
+                        hasExistingResults = hasExistingResults,
+                        existingIsSmishing = existingIsSmishing,
+                        existingExplanation = existingExplanation,
+                        existingTips = existingTips,
+                        onBackPressed = { finish() }
                     )
                 }
             }
@@ -77,22 +80,86 @@ fun SmsAnalysisScreen(
     sender: String,
     body: String,
     timestamp: Long,
+    messageId: String?,
     context: android.content.Context,
-    onBackPressed: () -> Unit,
-    onSmishingDetails: (String, String) -> Unit
+    hasExistingResults: Boolean = false,
+    existingIsSmishing: Boolean = false,
+    existingExplanation: String? = null,
+    existingTips: String? = null,
+    onBackPressed: () -> Unit
 ) {
-    var analysisStatus by remember { mutableStateOf(AnalysisStatus.PROCESSING) }
-    var analysisResult by remember { mutableStateOf<AnalysisResult?>(null) }
-    var smsAnalysisResult by remember { mutableStateOf<SmsAnalysisResult?>(null) }
+    var analysisStatus by remember { mutableStateOf(
+        if (hasExistingResults) AnalysisStatus.COMPLETED else AnalysisStatus.PROCESSING
+    ) }
+    var analysisResult by remember { mutableStateOf<AnalysisResult?>(
+        if (hasExistingResults) {
+            if (existingIsSmishing) AnalysisResult.SMISHING else AnalysisResult.BENIGN
+        } else null
+    ) }
+    var smsAnalysisResult by remember { mutableStateOf<SmsAnalysisResult?>(
+        if (hasExistingResults) {
+            SmsAnalysisResult(
+                isSmishing = existingIsSmishing,
+                explanation = existingExplanation ?: "",
+                tips = existingTips ?: ""
+            )
+        } else null
+    ) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var modelInfo by remember { mutableStateOf<String?>(null) }
-    var explanation by remember { mutableStateOf<String?>(null) }
+    var explanation by remember { mutableStateOf<String?>(existingExplanation) }
     
     val scope = rememberCoroutineScope()
     
-    // Perform real AI analysis
+    // Observe SmsMessageManager for updates
+    LaunchedEffect(messageId) {
+        if (messageId != null) {
+            SmsMessageManager.messagesFlow.collect { messages ->
+                val currentMessage = messages.find { it.id == messageId }
+                currentMessage?.let { message ->
+                    if (message.isSmishing != null) {
+                        Log.d("SmsAnalysisActivity", "Received update for message $messageId: isSmishing=${message.isSmishing}")
+                        smsAnalysisResult = SmsAnalysisResult(
+                            isSmishing = message.isSmishing,
+                            explanation = message.explanation ?: "",
+                            tips = message.tips ?: ""
+                        )
+                        analysisResult = if (message.isSmishing) AnalysisResult.SMISHING else AnalysisResult.BENIGN
+                        explanation = message.explanation
+                        analysisStatus = AnalysisStatus.COMPLETED
+                        Log.d("SmsAnalysisActivity", "Analysis status updated to COMPLETED from flow")
+                    }
+                }
+            }
+        }
+    }
+    
+    // Check for existing analysis results and start analysis if needed
     LaunchedEffect(Unit) {
-        Log.d("SmsAnalysisActivity", "Starting AI analysis for SMS: $body")
+        if (hasExistingResults) {
+            Log.d("SmsAnalysisActivity", "Using existing analysis results from intent")
+            return@LaunchedEffect
+        }
+        
+        // Check if we have results in SmsMessageManager
+        messageId?.let { id ->
+            val existingMessage = SmsMessageManager.getMessageById(id)
+            if (existingMessage?.isSmishing != null) {
+                Log.d("SmsAnalysisActivity", "Found existing analysis in SmsMessageManager")
+                smsAnalysisResult = SmsAnalysisResult(
+                    isSmishing = existingMessage.isSmishing,
+                    explanation = existingMessage.explanation ?: "",
+                    tips = existingMessage.tips ?: ""
+                )
+                analysisResult = if (existingMessage.isSmishing) AnalysisResult.SMISHING else AnalysisResult.BENIGN
+                explanation = existingMessage.explanation
+                analysisStatus = AnalysisStatus.COMPLETED
+                Log.d("SmsAnalysisActivity", "Analysis status updated to COMPLETED from SmsMessageManager")
+                return@LaunchedEffect
+            }
+        }
+        
+        Log.d("SmsAnalysisActivity", "No existing analysis found, starting new AI analysis for SMS: $body")
         
         // Check if models are available
         if (!SmsAnalysisHelper.hasAvailableModels(context)) {
@@ -119,6 +186,7 @@ fun SmsAnalysisScreen(
                 analysisResult = if (result.isSmishing) AnalysisResult.SMISHING else AnalysisResult.BENIGN
                 explanation = result.explanation
                 analysisStatus = AnalysisStatus.COMPLETED
+                Log.d("SmsAnalysisActivity", "Analysis status updated to COMPLETED")
             } else {
                 Log.e("SmsAnalysisActivity", "Analysis returned null result")
                 analysisStatus = AnalysisStatus.ERROR
@@ -210,23 +278,23 @@ fun SmsAnalysisScreen(
                 }
             }
             
-            // Analysis Status Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Analysis Status",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    when (analysisStatus) {
-                        AnalysisStatus.PROCESSING -> {
+            when (analysisStatus) {
+                AnalysisStatus.PROCESSING -> {
+                    // Analysis Status Card (only show when processing)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Analysis Status",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -241,73 +309,131 @@ fun SmsAnalysisScreen(
                                 )
                             }
                         }
-                        
-                        AnalysisStatus.COMPLETED -> {
-                            analysisResult?.let { result ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    }
+                }
+                
+                AnalysisStatus.COMPLETED -> {
+                    analysisResult?.let { result ->
+                        // Show analysis result with details
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Analysis Result Card
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = when (result) {
-                                            AnalysisResult.BENIGN -> Icons.Filled.CheckCircle
-                                            AnalysisResult.SMISHING -> Icons.Filled.Warning
-                                        },
-                                        contentDescription = null,
-                                        tint = when (result) {
-                                            AnalysisResult.BENIGN -> Color.Green
-                                            AnalysisResult.SMISHING -> Color.Red
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    
-                                    Text(
-                                        text = when (result) {
-                                            AnalysisResult.BENIGN -> "Message is safe"
-                                            AnalysisResult.SMISHING -> "Potential smishing detected"
-                                        },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = when (result) {
-                                            AnalysisResult.BENIGN -> Color.Green
-                                            AnalysisResult.SMISHING -> Color.Red
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = when (result) {
+                                                AnalysisResult.BENIGN -> Icons.Filled.CheckCircle
+                                                AnalysisResult.SMISHING -> Icons.Filled.Warning
+                                            },
+                                            contentDescription = null,
+                                            tint = when (result) {
+                                                AnalysisResult.BENIGN -> Color.Green
+                                                AnalysisResult.SMISHING -> Color.Red
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        
+                                        Text(
+                                            text = when (result) {
+                                                AnalysisResult.BENIGN -> "Message is safe"
+                                                AnalysisResult.SMISHING -> "Potential smishing detected"
+                                            },
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = when (result) {
+                                                AnalysisResult.BENIGN -> Color.Green
+                                                AnalysisResult.SMISHING -> Color.Red
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            // Show details for smishing messages
+                            if (result == AnalysisResult.SMISHING) {
+                                // Why this may be malicious card
+                                explanation?.let { exp ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Why this may be a malicious message",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                            
+                                            Text(
+                                                text = exp,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
                                         }
-                                    )
+                                    }
                                 }
                                 
-                                if (result == AnalysisResult.SMISHING) {
-                                    Text(
-                                        text = "This message contains suspicious content that may be a phishing attempt. Be cautious and do not click on any links or provide personal information.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    
-                                    // Clickable details button for smishing messages
-                                    explanation?.let { exp ->
-                                        Button(
-                                            onClick = { 
-                                                val tips = smsAnalysisResult?.tips ?: ""
-                                                onSmishingDetails(exp, tips)
-                                            },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color.Red
-                                            )
+                                // What to do card
+                                smsAnalysisResult?.tips?.let { tips ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Warning,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
+                                            Text(
+                                                text = "What to do",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
                                             )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("View Details")
+                                            
+                                            Text(
+                                                text = tips,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
-                        
-                        AnalysisStatus.ERROR -> {
+                    }
+                }
+                
+                AnalysisStatus.ERROR -> {
+                    // Error Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
